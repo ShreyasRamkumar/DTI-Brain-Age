@@ -9,44 +9,20 @@ class Network_Utility:
         run = nn.Sequential(
             nn.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(num_features=out_c)
+            nn.BatchNorm2d(num_features=out_c),
+            nn.MaxPool2d(kernel_size=2, stride=2)
         )
         return run
     
     @staticmethod
-    def down_convolution(in_c, out_c):
+    def fcn_layers():
         run = nn.Sequential(
-            nn.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=4, stride=2, padding=1),
+            nn.Linear(256, 128),
             nn.ReLU(),
-            nn.BatchNorm2d(num_features=out_c)
-        )
-        return run
-
-    @staticmethod
-    def up_convolution(in_c, out_c):
-        run = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=in_c, out_channels=out_c, kernel_size=4, stride=2, padding=1),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.BatchNorm2d(num_features=out_c),
+            nn.Linear(64, 1)
         )
-        return run
-
-    @staticmethod
-    def final_convolution(in_c, out_c):
-        run = nn.Sequential(
-            nn.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=1),
-            nn.ReLU()
-        )
-        return run
-
-    @staticmethod
-    def crop_tensor(target_tensor, tensor):
-        target_size = target_tensor.size()[2]
-        tensor_size = tensor.size()[2]
-        delta = tensor_size - target_size
-        delta = delta // 2
-
-        return tensor[:, :, delta:tensor_size- delta, delta:tensor_size-delta]
     
     @staticmethod
     def create_data_splits(dataset_len):

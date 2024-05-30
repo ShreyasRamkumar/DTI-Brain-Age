@@ -14,28 +14,7 @@ x_directory = "/home/ramkumars@acct.upmchs.net/Projects/Harmonizing-MRI-Scans/da
 
 class Callbacks(Callback):
     def on_test_end(self, trainer, pl_module):
-        outputs = pl_module.testing_outputs
-        sliced_yhat_list = []
-        
-        for i in range(len(outputs)):
-            yhat = outputs[i]
-            for j in range(4):
-                sliced_yhat = yhat[j:j+1, :, :, :]
-                print(sliced_yhat.shape)
-                if sliced_yhat.shape == torch.Size([0, 1, 256, 256]):
-                    sliced_yhat = sliced_yhat.reshape(0, 256, 1, 256)
-                else:
-                    sliced_yhat = sliced_yhat.reshape(1, 256, 1, 256)
-                sliced_yhat = sliced_yhat.squeeze(dim=0)
-                print(sliced_yhat.shape)
-                sliced_yhat_list.append(sliced_yhat)
-
-        for i in range(len(sliced_yhat_list)):
-            y_hat_path = f"{yhat_directory}/{i}.nii"
-            sliced_y_hat_tensor = sliced_yhat_list[i].cpu()
-            sliced_y_hat_array = sliced_y_hat_tensor.numpy()
-            y_hat_scan = nib.Nifti1Image(sliced_y_hat_array, affine=np.eye(4))
-            nib.save(y_hat_scan, y_hat_path)
+        pass # spit out some kind of csv file where data is represented as {subject id, predicted age, actual age, difference}
 
 # Model Class
 class Unet(pl.LightningModule):
@@ -48,57 +27,24 @@ class Unet(pl.LightningModule):
         self.validation_outputs = []
         
         # definition of neural network (naming convention = o_number of channels_encode/decode_up/down/side)
-        self.o_16_encode_side = Network_Utility.convolution(1, 16)
-        self.o_16_encode_down = Network_Utility.down_convolution(16, 16)
-        self.o_32_encode_side = Network_Utility.convolution(16, 32)
-        self.o_32_encode_down = Network_Utility.down_convolution(32, 32)
-        self.o_64_encode_side = Network_Utility.convolution(32, 64)
-        self.o_64_encode_down = Network_Utility.down_convolution(64, 64)
-        self.o_128_encode_side = Network_Utility.convolution(64, 128)
-        self.o_128_encode_down = Network_Utility.down_convolution(128, 128)
-        self.o_256_encode_side = Network_Utility.convolution(128, 256)
-        self.o_128_decode_up = Network_Utility.up_convolution(256, 128)
-        self.o_128_decode_side = Network_Utility.convolution(256, 128)
-        self.o_64_decode_up = Network_Utility.up_convolution(128, 64)
-        self.o_64_decode_side = Network_Utility.convolution(128, 64)
-        self.o_32_decode_up = Network_Utility.up_convolution(64, 32)
-        self.o_32_decode_side = Network_Utility.convolution(64, 32)
-        self.o_16_decode_up = Network_Utility.up_convolution(32, 16)
-        self.o_16_decode_side = Network_Utility.convolution(32, 16)
-        self.o_1_decode_side = Network_Utility.final_convolution(17, 1)
+        self.o_1 = Network_Utility.convolution(1, 16)
+        self.o_2 = Network_Utility.convolution(16, 32)
+        self.o_3 = Network_Utility.convolution(32, 64)
+        self.o_4 = Network_Utility.convolution(64, 128)
+        self.o_5 = Network_Utility.convolution(128, 256)
+        self.o_6 = Network_Utility.fcn_layers()
     
     # forward pass
     def forward(self, image):
         # naming convention: x_number of channels_encode/decode_up/down/nothing(side convolution)
         
-        x_16_encode = self.o_16_encode_side(image) # has a shape of [1, 16, 256, 256]
-        x_16_encode_down = self.o_16_encode_down(x_16_encode) # has a shape of [1, 16, 128, 128]
-        x_32_encode = self.o_32_encode_side(x_16_encode_down) # has a shape of [1, 32, 128, 128]
-        x_32_encode_down = self.o_32_encode_down(x_32_encode) # has a shape of [1, 32, 64, 64]
-        x_64_encode = self.o_64_encode_side(x_32_encode_down) # has a shape of [1, 64, 64, 64]     
-        x_64_encode_down = self.o_64_encode_down(x_64_encode) # has a shape of [1, 64, 32, 32]
-        x_128_encode = self.o_128_encode_side(x_64_encode_down)  # has a shape of [1, 128, 32, 32]      
-        x_128_encode_down = self.o_128_encode_down(x_128_encode) # has a shape of [1, 128, 16, 16]
-        x_256_encode = self.o_256_encode_side(x_128_encode_down) # has a shape of [1, 256, 16, 16]
-
-        x_256_decode_up = self.o_128_decode_up(x_256_encode) # has a shape of [1, 128, 22, 22]
-        x_256_decode_cat = torch.cat([x_256_decode_up, x_128_encode], 1) # has a shape of [1, 256, 32, 32]       
-        x_128_decode = self.o_128_decode_side(x_256_decode_cat) # has a shape of [1, 128, 32, 32]
-        x_128_decode_up = self.o_64_decode_up(x_128_decode) # has a shape of [1, 64, 64, 64]
-        x_128_decode_cat = torch.cat([x_128_decode_up, x_64_encode], 1) # has a shape of [1, 128, 64, 64]
-        x_64_decode = self.o_64_decode_side(x_128_decode_cat) # has a shape of [1, 64, 64, 64]
-        x_64_decode_up = self.o_32_decode_up(x_64_decode) # has a shape of [1, 32, 128, 128]
-        x_64_decode_cat = torch.cat([x_64_decode_up, x_32_encode], 1) # has a shape of [1, 64, 128, 128]
-        x_32_decode = self.o_32_decode_side(x_64_decode_cat) # has a shape of [1, 32, 128, 128]
-        x_32_decode_up = self.o_16_decode_up(x_32_decode) # has a shape of [1, 16, 256, 256]
-        x_32_decode_cat = torch.cat([x_32_decode_up, x_16_encode], 1) # has a shape of [1, 32, 256, 256]
-        x_16_decode = self.o_16_decode_side(x_32_decode_cat) # has a shape of [1, 16, 256, 256]
-        x_16_decode_cat = torch.cat([x_16_decode, image], 1) # has a shape of [1, 17, 256, 256]
-        final_image = self.o_1_decode_side(x_16_decode_cat)
-
-        assert final_image.shape == image.shape
-        
-        return final_image
+        conv_1 = self.o_1(image)
+        conv_2 = self.o_2(conv_1)
+        conv_3 = self.o_3(conv_2)
+        conv_4 = self.o_4(conv_3)
+        conv_5 = self.o_5(conv_4)
+        age_prediction = self.o_6(conv_5)
+        return age_prediction
 
     def configure_optimizers(self):
         opt = optim.Adam(self.parameters(), lr = self.learning_rate)
