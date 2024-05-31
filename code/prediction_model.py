@@ -2,7 +2,7 @@ import os
 import lightning.pytorch as pl
 from torch import optim, nn
 import torch
-
+from torch.utils.data import DataLoader, Dataset
 import nibabel as nib
 import numpy as np
 from lightning.pytorch.callbacks import Callback
@@ -11,6 +11,7 @@ from Network_Utility import Network_Utility
  
 # important folders
 x_directory = "/home/ramkumars@acct.upmchs.net/Projects/Harmonizing-MRI-Scans/data/processed_input/" # CHANGE FOR WHEN USING JENKINS
+# y_file = insert whatever json/text file has subject ID and age
 
 class Callbacks(Callback):
     def on_test_end(self, trainer, pl_module):
@@ -89,7 +90,7 @@ class MRIDataModule(pl.LightningDataModule):
         self.validation = []
         self.ground_truth_validation = []
         self.input_files = os.listdir(x_directory)
-        self.ground_truth_files = os.listdir(y_directory)
+        self.ground_truth_ages = []
 
     def setup(self, stage: str):
         # set up training, testing, validation split
@@ -100,19 +101,19 @@ class MRIDataModule(pl.LightningDataModule):
         validation_stop_index = lens[0] + lens[1] + lens[2] - 1
 
         self.training = self.input_files[:training_stop_index]
-        self.ground_truth_training = self.ground_truth_files[:training_stop_index]
+        self.ground_truth_training = self.ground_truth_ages[:training_stop_index]
 
         self.training_dataset = MRIDataset(self.training, self.ground_truth_training)
         self.training_dataloader = self.train_dataloader()
 
         self.testing = self.input_files[training_stop_index:testing_stop_index]
-        self.ground_truth_testing = self.ground_truth_files[training_stop_index:testing_stop_index]  
+        self.ground_truth_testing = self.ground_truth_ages[training_stop_index:testing_stop_index]  
 
         self.testing_dataset = MRIDataset(self.testing, self.ground_truth_testing)
         self.testing_dataloader = self.test_dataloader()
 
         self.validation = self.input_files[testing_stop_index:validation_stop_index] 
-        self.ground_truth_validation = self.ground_truth_files[testing_stop_index:validation_stop_index]
+        self.ground_truth_validation = self.ground_truth_ages[testing_stop_index:validation_stop_index]
 
         self.validation_dataset = MRIDataset(self.validation, self.ground_truth_validation)
         self.validation_dataloader = self.val_dataloader()
