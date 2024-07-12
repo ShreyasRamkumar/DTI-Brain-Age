@@ -14,13 +14,6 @@ num_layers = 6
 dim_feedforward = 2048
 dropout = 0.1
 
-# Define the image preprocessing
-transform = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-])
-
 # Define the patch embedding layer
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels, patch_size, embed_dim):
@@ -92,13 +85,10 @@ class VisionTransformer(pl.LightningModule):
 
 
 if __name__ == "__main__":
-    # Define the model parameters
     in_channels = 3
     embed_dim = 768
     num_classes = 1
 
-    # Create the model
     model = VisionTransformer(in_channels, patch_size, embed_dim, num_heads, num_layers, dim_feedforward, dropout, num_classes)
 
-    # Example usage
     trainer = pl.Trainer(max_epochs=10, accelerator='gpu', devices=1)

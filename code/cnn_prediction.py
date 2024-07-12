@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 import nibabel as nib
 import numpy as np
 from lightning.pytorch.callbacks import Callback
-from Network_Utility import Network_Utility
+from code.cnn_utility import Network_Utility
 
  
 # important folders
