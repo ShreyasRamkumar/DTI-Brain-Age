@@ -163,3 +163,7 @@ cython_debug/
 *.ipynb
 *.pdf
 /data
+*.txt
+/papers
+/.idea
+/.pytest_cache
