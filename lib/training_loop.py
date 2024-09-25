@@ -1,16 +1,49 @@
 import os
-from typing import List
 import torch
+from pytorch_lightning.loggers import TensorBoardLogger
 from torch import nn, optim
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, Callback
 from torch.utils.data import DataLoader, Dataset
 import nibabel as nib
 from network_utility import network_utility as nu
 from cnn_prediction import CNN
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+import pandas as pd
+import matplotlib.pyplot as plt
+import subprocess
 
-dti_directory = "C:\Code\GPN\DTI-Brain-Age\data\CamCAN"
-ages_directory = "C:\Code\GPN\DTI-Brain-Age\data\participant_data.csv"
+dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN"
+ages_directory = "ix1/haizenstein/data/data/participant_data.csv"
 arch = CNN()
+
+class SaveTensorBoardCallback(Callback):
+    def __init__(self, log_dir, export_dir):
+        self.log_dir = log_dir
+        self.export_dir = export_dir
+
+    def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
+        os.makedirs(pl_module.log_dir, exist_ok=True)
+        ea = EventAccumulator(self.log_dir)
+        ea.Reload()
+
+        for tag in ea.Tags()['scalars']:
+            events = ea.Scalars(tag)
+            df = pd.DataFrame(events)
+
+            # Save to CSV
+            csv_path = os.path.join(self.export_dir, f"{tag}.csv")
+            df.to_csv(csv_path, index=False)
+
+            # Create and save plot
+            plt.figure(figsize=(10, 6))
+            plt.plot(df['step'], df['value'])
+            plt.title(tag)
+            plt.xlabel('Step')
+            plt.ylabel('Value')
+            plt.savefig(os.path.join(self.export_dir, f"{tag}.png"))
+            plt.close()
+
 
 class AgePredictor(pl.LightningModule):
     def __init__(self, learning_rate=1e-3, model_arch=None):
@@ -128,8 +161,19 @@ class DTIDataset(Dataset):
 
 
 if __name__ == "__main__":
+    logger = TensorBoardLogger(save_dir="ihome/haizenstein/shr120/lib/logs/", name="logs")
+    checkpoint_callback = ModelCheckpoint(
+        dirpath="ihome/haizenstein/shr120/lib/checkpoints/",
+        filename="model-{epoch:02d}",
+        save_top_k=1,
+        every_n_epochs=10
+    )
+    tb_callback = SaveTensorBoardCallback(
+        log_dir=logger.log_dir,
+        export_dir="ihome/haizenstein/shr120/lib/logs/cnn/version_1/"
+    )
+
     dti_data = DTIDataModule(batch_size=4, dti_paths=dti_directory)
     model = AgePredictor(model_arch=arch)
-    train = pl.Trainer(max_epochs=200, accelerator="gpu", devices=1)
+    train = pl.Trainer(max_epochs=200, accelerator="gpu", devices=1, callbacks=[checkpoint_callback, tb_callback])
     train.fit(model, dti_data)
-    train.test(model, dti_data)
