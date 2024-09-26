@@ -17,6 +17,11 @@ dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN/"
 ages_directory = "ix1/haizenstein/data/data/participant_data.csv"
 arch = CNN()
 
+# HYPERPARAMETERS
+learning_rate = 1e-3
+batch_size = 4
+max_epochs = 200
+
 class SaveTensorBoardCallback(Callback):
     def __init__(self, log_dir, export_dir):
         self.log_dir = log_dir
@@ -46,7 +51,7 @@ class SaveTensorBoardCallback(Callback):
 
 
 class AgePredictor(pl.LightningModule):
-    def __init__(self, learning_rate=1e-3, model_arch=None):
+    def __init__(self, learning_rate: float, model_arch=None):
         super().__init__()
         self.lr = learning_rate
         self.criterion = nn.MSELoss()
@@ -90,7 +95,7 @@ class AgePredictor(pl.LightningModule):
 
 
 class DTIDataModule(pl.LightningDataModule):
-    def __init__(self, dti_paths, batch_size: int = 4):
+    def __init__(self, dti_paths, batch_size: int):
         super().__init__()
         self.batch_size = batch_size
         self.input_files = os.listdir(dti_paths)
@@ -173,7 +178,7 @@ if __name__ == "__main__":
         export_dir="ihome/haizenstein/shr120/lib/logs/cnn/version_1/"
     )
 
-    dti_data = DTIDataModule(batch_size=4, dti_paths=dti_directory)
-    model = AgePredictor(model_arch=arch)
-    train = pl.Trainer(max_epochs=200, accelerator="gpu", devices=1, callbacks=[checkpoint_callback, tb_callback])
+    dti_data = DTIDataModule(batch_size=batch_size, dti_paths=dti_directory)
+    model = AgePredictor(learning_rate=learning_rate, model_arch=arch)
+    train = pl.Trainer(max_epochs=max_epochs, accelerator="gpu", devices=1, callbacks=[checkpoint_callback, tb_callback])
     train.fit(model, dti_data)
