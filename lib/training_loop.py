@@ -13,7 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import subprocess
 
-dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN"
+dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN/"
 ages_directory = "ix1/haizenstein/data/data/participant_data.csv"
 arch = CNN()
 
@@ -71,7 +71,7 @@ class AgePredictor(pl.LightningModule):
 
     def test_step(self, test_batch, batch_idx):
         x = test_batch["scan"]
-        y = test_batch["ground_truth"]
+        y = test_batch["age"]
         y_hat = self.forward(x)
         self.testing_outputs.append(y_hat)
 
@@ -80,7 +80,7 @@ class AgePredictor(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         x = val_batch["scan"]
-        y = val_batch["ground_truth"]
+        y = val_batch["age"]
         y_hat = self.forward(x)
 
         self.validation_outputs.append(y_hat)
