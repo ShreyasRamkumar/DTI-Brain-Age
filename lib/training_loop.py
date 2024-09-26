@@ -11,16 +11,15 @@ from cnn_prediction import CNN
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 import pandas as pd
 import matplotlib.pyplot as plt
-import subprocess
 
 dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN/"
 ages_directory = "ix1/haizenstein/data/data/participant_data.csv"
 arch = CNN()
 
 # HYPERPARAMETERS
-learning_rate = 1e-3
+learning_rate = 1e-5
 batch_size = 4
-max_epochs = 200
+max_epochs = 100
 
 class SaveTensorBoardCallback(Callback):
     def __init__(self, log_dir, export_dir):
