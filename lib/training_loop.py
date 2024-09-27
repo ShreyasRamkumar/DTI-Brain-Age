@@ -12,8 +12,8 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 import pandas as pd
 import matplotlib.pyplot as plt
 
-dti_directory = "ix1/haizenstein/shr120/data/data/CamCAN/"
-ages_directory = "ix1/haizenstein/data/data/participant_data.csv"
+dti_directory = "/ix1/haizenstein/shr120/data/data/CamCAN/"
+ages_directory = "/ix1/haizenstein/data/data/participant_data.csv"
 arch = CNN()
 
 # HYPERPARAMETERS
@@ -165,19 +165,23 @@ class DTIDataset(Dataset):
 
 
 if __name__ == "__main__":
-    logger = TensorBoardLogger(save_dir="ihome/haizenstein/shr120/lib/logs/", name="logs")
+    logger = TensorBoardLogger(save_dir="/ihome/haizenstein/shr120/lib/logs/", name="logs")
     checkpoint_callback = ModelCheckpoint(
-        dirpath="ihome/haizenstein/shr120/lib/checkpoints/",
+        dirpath="/ihome/haizenstein/shr120/lib/checkpoints/",
         filename="model-{epoch:02d}",
         save_top_k=1,
         every_n_epochs=10
     )
     tb_callback = SaveTensorBoardCallback(
         log_dir=logger.log_dir,
-        export_dir="ihome/haizenstein/shr120/lib/logs/cnn/version_1/"
+        export_dir="/ihome/haizenstein/shr120/lib/logs/cnn/version_1/"
     )
 
+    print("setting up data module")
     dti_data = DTIDataModule(batch_size=batch_size, dti_paths=dti_directory)
+    print("setting up model")
     model = AgePredictor(learning_rate=learning_rate, model_arch=arch)
+    print("setting up trainer")
     train = pl.Trainer(max_epochs=max_epochs, accelerator="gpu", devices=1, callbacks=[checkpoint_callback, tb_callback])
+    print("starting training")
     train.fit(model, dti_data)
