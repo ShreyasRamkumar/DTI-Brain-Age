@@ -6,7 +6,7 @@ import torch
 from torch import nn, einsum, sqrt, FloatTensor, arange
 from tqdm import tqdm
 
-class network_utility:
+class Nu:
     @staticmethod
     def create_data_splits(dataset_len):
         training_len = int(dataset_len * 0.8)
