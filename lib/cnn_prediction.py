@@ -95,8 +95,7 @@ class DTIDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.dti_directory = dti_paths
         self.ages_directory = ages_directory
-        self.input_files = os.listdir(dti_paths)
-        self.ages = nu.import_data(ages_directory, self.input_files)
+        self.input_paths, self.ages = nu.import_data(ages_directory, os.listdir(dti_paths))
         self.training_dataloader = None
         self.testing_dataloader = None
         self.validation_dataloader = None
@@ -106,24 +105,24 @@ class DTIDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str):
         # set up training, testing, validation split
-        lens = nu.create_data_splits(len(self.input_files))
+        lens = nu.create_data_splits(len(self.input_paths))
         training_stop_index = lens[0]
         testing_stop_index = lens[0] + lens[1]
         validation_stop_index = lens[0] + lens[1] + lens[2]
 
-        training = self.input_files[:training_stop_index]
+        training = self.input_paths[:training_stop_index]
         training_ages = self.ages[:training_stop_index]
 
         self.training_dataset = DTIDataset(training, training_ages, self.dti_directory)
         self.training_dataloader = self.train_dataloader()
 
-        testing = self.input_files[training_stop_index:testing_stop_index]
+        testing = self.input_paths[training_stop_index:testing_stop_index]
         testing_ages = self.ages[training_stop_index:testing_stop_index]
 
         self.testing_dataset = DTIDataset(testing, testing_ages, self.dti_directory)
         self.testing_dataloader = self.test_dataloader()
 
-        validation = self.input_files[testing_stop_index:validation_stop_index]
+        validation = self.input_paths[testing_stop_index:validation_stop_index]
         validation_ages = self.ages[testing_stop_index:validation_stop_index]
 
         self.validation_dataset = DTIDataset(validation, validation_ages, self.dti_directory)

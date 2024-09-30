@@ -1,4 +1,5 @@
 import csv
+import os
 from typing import List
 
 import skimage
@@ -65,19 +66,21 @@ class Nu:
 
     @staticmethod
     def import_data(csv_file, scan_paths):
+        paths = []
         ages = []
         scan_counter = 0
-
-        with open(csv_file, mode='r') as file:
-            csv_reader = csv.reader(file)
-
-            for i, row in enumerate(csv_reader):
-                if row[0] in scan_paths[scan_counter]:
+        scans = os.listdir("C:\Code\GPN\DTI-Brain-Age\data\CamCAN")
+        with open(csv_file, "r") as f:
+            for i, row in enumerate(f):
+                elements = row.split(",")
+                scan_id = elements[0]
+                scan = scans[scan_counter]
+                if scan_id in scan:
+                    paths.append(scan_id)
+                    ages.append(elements[1])
                     scan_counter += 1
-                    age = row[1]
-                    ages.append(age)
 
-        return ages
+        return paths, ages
 
 # taken from Papers With Code (https://paperswithcode.com/method/inverted-residual-block)
 class InvertedResidual(nn.Module):
