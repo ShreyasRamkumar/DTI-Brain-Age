@@ -67,7 +67,7 @@ class CNN(pl.LightningModule):
         self.log("test_loss", loss, on_epoch=True)
 
 class DTIDataset(Dataset):
-    def __init__(self, model_input: list = [], brain_ages: list = [], dti_directory: str = ""):
+    def __init__(self, model_input: list = None, brain_ages: list = None, dti_directory: str = ""):
         super().__init__()
         self.model_input = model_input
         self.ages = brain_ages
@@ -93,9 +93,9 @@ class DTIDataModule(pl.LightningDataModule):
     def __init__(self, dti_paths, ages_directory, batch_size: int):
         super().__init__()
         self.batch_size = batch_size
-        self.dti_directory = dti_paths
         self.ages_directory = ages_directory
-        self.input_paths, self.ages = nu.import_data(ages_directory, os.listdir(dti_paths))
+        self.dti_paths = dti_paths
+        self.dti_directory, self.ages = nu.import_data(ages_directory, os.listdir(dti_paths))
         self.training_dataloader = None
         self.testing_dataloader = None
         self.validation_dataloader = None
@@ -105,27 +105,27 @@ class DTIDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str):
         # set up training, testing, validation split
-        lens = nu.create_data_splits(len(self.input_paths))
+        lens = nu.create_data_splits(len(self.dti_directory))
         training_stop_index = lens[0]
         testing_stop_index = lens[0] + lens[1]
         validation_stop_index = lens[0] + lens[1] + lens[2]
 
-        training = self.input_paths[:training_stop_index]
+        training = self.dti_directory[:training_stop_index]
         training_ages = self.ages[:training_stop_index]
 
-        self.training_dataset = DTIDataset(training, training_ages, self.dti_directory)
+        self.training_dataset = DTIDataset(training, training_ages, self.dti_paths)
         self.training_dataloader = self.train_dataloader()
 
-        testing = self.input_paths[training_stop_index:testing_stop_index]
+        testing = self.dti_directory[training_stop_index:testing_stop_index]
         testing_ages = self.ages[training_stop_index:testing_stop_index]
 
-        self.testing_dataset = DTIDataset(testing, testing_ages, self.dti_directory)
+        self.testing_dataset = DTIDataset(testing, testing_ages, self.dti_paths)
         self.testing_dataloader = self.test_dataloader()
 
-        validation = self.input_paths[testing_stop_index:validation_stop_index]
+        validation = self.dti_directory[testing_stop_index:validation_stop_index]
         validation_ages = self.ages[testing_stop_index:validation_stop_index]
 
-        self.validation_dataset = DTIDataset(validation, validation_ages, self.dti_directory)
+        self.validation_dataset = DTIDataset(validation, validation_ages, self.dti_paths)
         self.validation_dataloader = self.val_dataloader()
 
     def train_dataloader(self):
@@ -172,8 +172,8 @@ if __name__ == "__main__":
     max_epochs = 100
 
     # Directories
-    dti_directory = "/ix1/haizenstein/shr120/data/data/CamCAN/"
-    ages_directory = "/ix1/haizenstein/data/data/participant_data.csv"
+    dti_directory = "/ix1/haizenstein/shr120/data/CamCAN/"
+    ages_directory = "/ix1/haizenstein/data/participant_data.csv"
 
     print("initializing tb and logger\n")
     # Logger and callbacks

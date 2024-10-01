@@ -65,22 +65,19 @@ class Nu:
         c_swin.encoder.layers[l_idx].blocks[b_idx].output.dense.bias.data = w_b[9]
 
     @staticmethod
-    def import_data(csv_file, scan_paths):
-        paths = []
+    def import_data(csv_file, scans):
         ages = []
         scan_counter = 0
-        scans = os.listdir("C:\Code\GPN\DTI-Brain-Age\data\CamCAN")
         with open(csv_file, "r") as f:
             for i, row in enumerate(f):
                 elements = row.split(",")
                 scan_id = elements[0]
                 scan = scans[scan_counter]
                 if scan_id in scan:
-                    paths.append(scan_id)
                     ages.append(elements[1])
                     scan_counter += 1
 
-        return paths, ages
+        return scans, ages
 
 # taken from Papers With Code (https://paperswithcode.com/method/inverted-residual-block)
 class InvertedResidual(nn.Module):
