@@ -1,11 +1,10 @@
-import csv
-import os
 from typing import List
-
 import skimage
 import torch
 from torch import nn, einsum, sqrt, FloatTensor, arange
 from tqdm import tqdm
+import csv
+
 
 class Nu:
     @staticmethod
@@ -17,7 +16,7 @@ class Nu:
     @staticmethod
     def get_slice(scan_tensor):
         scan_entropies = []
-        for i in tqdm(range(68)):
+        for i in range(68):
             scan_slice = scan_tensor[:, :, i]
             entropy = skimage.measure.shannon_entropy(scan_slice)
             scan_entropies.append(entropy)
@@ -66,19 +65,21 @@ class Nu:
 
     @staticmethod
     def import_data(csv_file, scans):
-        ages = []
-        scan_counter = 0
         with open(csv_file, "r") as f:
-            for i, row in enumerate(f):
-                elements = row.split(",")
-                scan_id = elements[0]
-                scan = scans[scan_counter]
-                if scan_id in scan:
-                    ages.append(elements[1])
-                    scan_counter += 1
+            csv_reader = csv.reader(f)
+            for i, row in enumerate(csv_reader):
+                if i > 0:
+                    scan_id = row[0]
+                    age = float(row[1])
 
-        return scans, ages
+                    # Find the scan path that contains this ID
+                    matching_path = next((path for path in scans.keys() if scan_id in path), None)
 
+                    if matching_path:
+                        # If a matching scan is found, update the age value
+                        scans[matching_path] = age
+
+        return scans
 # taken from Papers With Code (https://paperswithcode.com/method/inverted-residual-block)
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio, norm_layer=None):

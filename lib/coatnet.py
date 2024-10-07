@@ -1,45 +1,74 @@
-import os
 import torch
-from pytorch_lightning.loggers import TensorBoardLogger
-from torch import nn, optim
+from torch import optim
+from coatnet_utility import *
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, Callback
-from torch.utils.data import DataLoader, Dataset
 import nibabel as nib
-from cnn_utility import network_utility
 from network_utility import Nu as nu
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 import pandas as pd
 import matplotlib.pyplot as plt
 from sortedcontainers import SortedDict
+from pytorch_lightning.callbacks import ModelCheckpoint, Callback
+from torch.utils.data import DataLoader, Dataset
+import os
+from pytorch_lightning.loggers import TensorBoardLogger
 
-class CNN(pl.LightningModule):
-    def __init__(self, lr=1e-5):
-        super().__init__()
+# CoAtNet Architecture
+class CoAtNet(pl.LightningModule):
+    def __init__(self, lr=1e-5, num_classes=1):
+        super(CoAtNet, self).__init__()
         self.lr = lr
         self.criterion = nn.MSELoss()
         self.training_output = []
         self.testing_outputs = []
         self.validation_outputs = []
 
-        # CNN architecture
-        self.o_1 = network_utility.convolution(1, 16)
-        self.o_2 = network_utility.convolution(16, 32)
-        self.o_3 = network_utility.convolution(32, 64)
-        self.o_4 = network_utility.convolution(64, 128)
-        self.o_5 = network_utility.convolution(128, 256)
-        self.o_6 = network_utility.fcn_layers()
+        # Stage S0: Stem
+        self.stem = nn.Sequential(
+            ConvBlock(1, 64, kernel_size=3, stride=2),  # 128x128 -> 64x64
+            ConvBlock(64, 64, kernel_size=3, stride=1)
+        )
 
-    def forward(self, image):
-        image = image.to(self.device)
-        conv_1 = self.o_1(image)
-        conv_2 = self.o_2(conv_1)
-        conv_3 = self.o_3(conv_2)
-        conv_4 = self.o_4(conv_3)
-        conv_5 = self.o_5(conv_4)
-        conv_5_flat = conv_5.view(conv_5.size(0), -1)
-        age_prediction = self.o_6(conv_5_flat)
-        return age_prediction
+        # Stage S1: Conv blocks
+        self.stage1 = nn.Sequential(
+            ResidualBlock(64, 128, stride=2),  # 64x64 -> 32x32
+            ResidualBlock(128, 128)
+        )
+
+        # Stage S2: Conv blocks
+        self.stage2 = nn.Sequential(
+            ResidualBlock(128, 256, stride=2),  # 32x32 -> 16x16
+            ResidualBlock(256, 256),
+            ResidualBlock(256, 256)
+        )
+
+        # Stage S3: Attention blocks
+        self.stage3 = nn.Sequential(
+            AttentionBlock(dim=256, heads=8),  # 16x16 -> 8x8
+            AttentionBlock(dim=256, heads=8)
+        )
+
+        # Stage S4: Attention blocks
+        self.stage4 = nn.Sequential(
+            AttentionBlock(dim=256, heads=8),  # 8x8 -> 4x4
+            AttentionBlock(dim=256, heads=8)
+        )
+
+        # Global Pooling and Classification Head
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(256, num_classes)
+
+    def forward(self, x):
+        # Forward pass through each stage
+        x = self.stem(x)
+        x = self.stage1(x)
+        x = self.stage2(x)
+        x = self.stage3(x)
+        x = self.stage4(x)
+        x = self.global_pool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr)
@@ -173,41 +202,38 @@ if __name__ == "__main__":
     # Hyperparameters
     learning_rate = 1e-5
     batch_size = 4
-    max_epochs = 200
-
-    # Paths
-    ckpt_path = "/ihome/haizenstein/shr120/lib/checkpoints/model-epoch=99.ckpt"
+    max_epochs = 100
 
     # Directories
-    dti_directory = "/ix1/haizenstein/shr120/data/CamCAN/"
-    ages_csv = "/ix1/haizenstein/shr120/data/participant_data.csv"
+    dti_directory = "C:\Code\GPN\DTI-Brain-Age\data\CamCAN" # "/ix1/haizenstein/shr120/data/CamCAN/"
+    ages_csv = "C:\Code\GPN\DTI-Brain-Age\data\participant_data.csv" # "/ix1/haizenstein/shr120/data/participant_data.csv"
 
     print("initializing tb and logger\n")
     # Logger and callbacks
-    logger = TensorBoardLogger(save_dir="/ihome/haizenstein/shr120/lib/logs/", name="logs")
-    checkpoint_callback = ModelCheckpoint(
-        dirpath="/ihome/haizenstein/shr120/lib/checkpoints/",
-        filename="model-{epoch:02d}",
-        save_top_k=1,
-        every_n_epochs=10
-    )
-    tb_callback = SaveTensorBoardCallback(
-        log_dir=logger.log_dir,
-        export_dir="/ihome/haizenstein/shr120/lib/logs/cnn/version_1_extended/"
-    )
+    # logger = TensorBoardLogger(save_dir="/ihome/haizenstein/shr120/lib/logs/", name="logs")
+    # checkpoint_callback = ModelCheckpoint(
+    #     dirpath="/ihome/haizenstein/shr120/lib/checkpoints/",
+    #     filename="model-{epoch:02d}",
+    #     save_top_k=1,
+    #     every_n_epochs=10
+    # )
+    # tb_callback = SaveTensorBoardCallback(
+    #     log_dir=logger.log_dir,
+    #     export_dir="/ihome/haizenstein/shr120/lib/logs/cnn/version_1_extended/"
+    # )
 
     print("initializing model\n")
     # Initialize model
-    model = CNN.load_from_checkpoint(ckpt_path)
+    model = CoAtNet()
 
     print("initializing trainer\n")
     # Initialize trainer
     trainer = pl.Trainer(
         max_epochs=max_epochs,
-        accelerator="gpu",
+        accelerator="cpu",
         devices=1,
-        callbacks=[checkpoint_callback, tb_callback],
-        logger=logger
+        # callbacks=[checkpoint_callback, tb_callback],
+        # logger=logger
     )
 
     # Initialize data module
@@ -215,7 +241,7 @@ if __name__ == "__main__":
     data_module = DTIDataModule(batch_size=batch_size, dti_directory=dti_directory, ages_csv=ages_csv)
 
     # Train the model
-    trainer.fit(model, data_module, ckpt_path=ckpt_path)
+    trainer.fit(model, data_module)
 
     # Test the model
-    trainer.test(model, data_module, ckpt_path=ckpt_path)
+    trainer.test(model, data_module)
